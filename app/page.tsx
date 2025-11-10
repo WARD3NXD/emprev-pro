@@ -1,7 +1,9 @@
 "use client";
 
-import React from "react";
-import Link from "next/link";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth-provider"; // adjust path if needed
+
 import {
   Card,
   CardHeader,
@@ -10,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,10 +24,33 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
-import { PieChart, BarChart, CheckCircle, Clock, User } from "lucide-react";
+import { Search, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes"; // if using next-themes; remove if not
 
-// Sample data (placeholder) — replace with real data hooks / fetchers
+// --- small ThemeToggle (optional) ---
+function ThemeToggle() {
+  // if you didn't set up next-themes, remove this component or use your theme context
+  try {
+    // try/catch so build won't fail if next-themes is not installed
+    const { theme, setTheme, systemTheme } = useTheme();
+    const active = theme === "system" ? systemTheme : theme;
+    const isDark = active === "dark";
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setTheme(isDark ? "light" : "dark")}
+        aria-label="Toggle theme"
+      >
+        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+      </Button>
+    );
+  } catch {
+    return null;
+  }
+}
+
+// placeholder data (same as before)
 const kpis = [
   { id: "completed", title: "Reviews completed", value: "128", delta: "+12%" },
   { id: "inprogress", title: "In progress", value: "34", delta: "-3%" },
@@ -48,14 +72,35 @@ const upcomingReviews = [
 ];
 
 export default function DashboardPage() {
+  // --- AUTH GUARD (must be inside the component function) ---
+  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    // if auth finished loading and no user -> redirect to login
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [user, loading, router]);
+
+  // while the AuthProvider is initializing (reading localStorage), show a simple splash
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading…
+      </div>
+    );
+  }
+
+  // --- actual dashboard UI (same as earlier) ---
   return (
     <main className="p-6 lg:p-10 space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Emprev</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Review your employee with ease.
+            Overview of active reviews, recent activity and KPIs.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -65,8 +110,16 @@ export default function DashboardPage() {
               <Search size={16} />
             </Button>
           </div>
+
+          <ThemeToggle />
+
+          <Button onClick={() => router.push("/new-review")}>New review</Button>
+          <Button variant="ghost" onClick={() => { signOut(); router.replace("/login"); }}>
+            Sign out
+          </Button>
+
           <Avatar>
-            <AvatarImage src="https://res.cloudinary.com/dpe3jxriv/image/upload/v1762755016/avatar_rupbhz.png" alt="You" />
+            <AvatarImage src="/avatar.jpg" alt="You" />
             <AvatarFallback>MK</AvatarFallback>
           </Avatar>
         </div>
@@ -95,9 +148,7 @@ export default function DashboardPage() {
               <CardTitle className="flex items-center justify-between">
                 <span>Review progress</span>
                 <div className="flex items-center gap-3">
-                  <Button variant="ghost" size="sm">
-                    Export
-                  </Button>
+                  <Button variant="ghost" size="sm">Export</Button>
                   <Button size="sm">Manage cycles</Button>
                 </div>
               </CardTitle>
@@ -155,6 +206,58 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
+              <CardTitle>Team snapshot</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">Engineering</div>
+                    <div className="text-xs text-muted-foreground">24 employees • 18 reviews open</div>
+                  </div>
+                  <div className="w-24">
+                    <Progress value={72} />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">Product</div>
+                    <div className="text-xs text-muted-foreground">8 employees • 3 reviews open</div>
+                  </div>
+                  <div className="w-24">
+                    <Progress value={62} />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">Design</div>
+                    <div className="text-xs text-muted-foreground">6 employees • 2 reviews open</div>
+                  </div>
+                  <div className="w-24">
+                    <Progress value={80} />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex flex-col gap-2">
+                <Button variant="outline">Start review cycle</Button>
+                <Button variant="ghost">Invite team</Button>
+                <Button>Configure templates</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Top performers</CardTitle>
             </CardHeader>
             <CardContent>
@@ -181,24 +284,10 @@ export default function DashboardPage() {
               </Table>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex flex-col gap-2">
-                <Button>New Review</Button>
-                <Button variant="outline">Configure templates</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          
         </div>
       </div>
 
-      <footer className="text-center text-xs text-muted-foreground py-6">Built with collaboration of AI and Human Mind</footer>
+      <footer className="text-center text-xs text-muted-foreground py-6">Built with shadcn/ui • Lightweight & upgradeable</footer>
     </main>
   );
 }
