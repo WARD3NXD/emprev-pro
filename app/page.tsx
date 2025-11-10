@@ -188,9 +188,8 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex flex-col gap-2">
-                <Button variant="outline">Start review cycle</Button>
-                <Button variant="ghost">Invite team</Button>
-                <Button>Configure templates</Button>
+                <Button>New Review</Button>
+                <Button variant="outline">Configure templates</Button>
               </div>
             </CardContent>
           </Card>
@@ -199,7 +198,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <footer className="text-center text-xs text-muted-foreground py-6">Built with shadcn/ui • Lightweight & upgradeable</footer>
+      <footer className="text-center text-xs text-muted-foreground py-6">Built with collaboration of AI and Human Mind</footer>
     </main>
   );
 }
