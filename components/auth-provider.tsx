@@ -2,8 +2,9 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-type User = { id: string; name: string; email: string } | null;
+type User = { id: string; email: string; name?: string; role?: string } | null;
 type AuthContextValue = {
   user: User;
   loading: boolean;
@@ -12,39 +13,50 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-const STORAGE_KEY = "erp_user_token"; // simple dev token
+const STORAGE_KEY = "erp_token";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  // on mount read localStorage for a token (very basic)
   useEffect(() => {
-    const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        setUser(parsed);
-      } catch (e) {
-        setUser(null);
-      }
+    const token = localStorage.getItem(STORAGE_KEY);
+    if (!token) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    // fetch /api/auth/me
+    fetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data) => {
+        setUser(data.user ?? null);
+      })
+      .catch((e) => {
+        console.error("me fetch error", e);
+        setUser(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   async function signIn(email: string, password: string) {
-    // === Replace this section with a real API call in production ===
-    // Fake authentication: accept any email/password, create a fake user and 'token'
-    await new Promise((r) => setTimeout(r, 600)); // small delay to simulate network
-    const fakeUser = { id: "u1", name: email.split("@")[0] ?? "User", email };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(fakeUser));
-    setUser(fakeUser);
-    return fakeUser;
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Login failed");
+    localStorage.setItem(STORAGE_KEY, data.token);
+    setUser(data.user);
+    return data.user;
   }
 
   function signOut() {
     localStorage.removeItem(STORAGE_KEY);
     setUser(null);
+    router.replace("/login");
   }
 
   return (

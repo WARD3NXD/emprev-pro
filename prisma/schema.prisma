@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String?
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Opposite sides for relations
+  templates    ReviewTemplate[] @relation("UserCreatedTemplates")
+  reviewCycles ReviewCycle[]    @relation("UserCreatedCycles")
+}
+
+model Employee {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?  @unique
+  designation  String?
+  employeeCode String?
+  team         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Opposite sides
+  reviews Review[] @relation("ReviewForEmployee")
+  invites Invite[] @relation("InvitesForEmployee")
+}
+
+model ReviewTemplate {
+  id          String            @id @default(cuid())
+  title       String
+  description String?
+  version     Int               @default(1)
+  isLocked    Boolean           @default(false)
+  createdById String?
+  createdBy   User?             @relation("UserCreatedTemplates", fields: [createdById], references: [id])
+  sections    TemplateSection[]
+  createdAt   DateTime          @default(now())
+
+  // Opposite side for ReviewCycle.template
+  cycles ReviewCycle[] @relation("TemplateToCycles")
+}
+
+model TemplateSection {
+  id          String         @id @default(cuid())
+  templateId  String
+  template    ReviewTemplate @relation(fields: [templateId], references: [id])
+  label       String
+  type        SectionType
+  description String?
+  required    Boolean        @default(true)
+  config      Json?
+  order       Int            @default(0)
+}
+
+model ReviewCycle {
+  id          String         @id @default(cuid())
+  title       String
+  templateId  String
+  template    ReviewTemplate @relation("TemplateToCycles", fields: [templateId], references: [id])
+  startAt     DateTime
+  endAt       DateTime
+  createdById String?
+  createdBy   User?          @relation("UserCreatedCycles", fields: [createdById], references: [id])
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  invites     Invite[]       @relation("InvitesForCycle")
+  reviews     Review[]       @relation("ReviewsForCycle")
+}
+
+model Invite {
+  id            String      @id @default(cuid())
+  token         String      @unique
+  reviewCycleId String
+  reviewCycle   ReviewCycle @relation("InvitesForCycle", fields: [reviewCycleId], references: [id])
+  revieweeId    String
+  reviewee      Employee    @relation("InvitesForEmployee", fields: [revieweeId], references: [id])
+  expiresAt     DateTime?
+  isSingleUse   Boolean     @default(true)
+  usedAt        DateTime?
+  createdAt     DateTime    @default(now())
+
+  // Inverse side of the one-to-one relation with Review
+  // Notice: no `fields` or `references` here — Review owns the FK
+  review Review? @relation("InviteReview")
+}
+
+model Review {
+  id       String  @id @default(cuid())
+  // Invite foreign key - unique to enforce one-to-one (an invite can only produce one review)
+  inviteId String? @unique
+  invite   Invite? @relation("InviteReview", fields: [inviteId], references: [id])
+
+  reviewCycleId       String
+  reviewCycle         ReviewCycle @relation("ReviewsForCycle", fields: [reviewCycleId], references: [id])
+  revieweeId          String
+  reviewee            Employee    @relation("ReviewForEmployee", fields: [revieweeId], references: [id])
+  reviewerName        String
+  reviewerDesignation String?
+  payload             Json
+  aggregateScore      Float?
+  submittedAt         DateTime    @default(now())
+  ip                  String?
+  userAgent           String?
+}
+
+enum Role {
+  ADMIN
+  TEAM_LEAD
+  MEMBER
+}
+
+enum SectionType {
+  RATING
+  DROPDOWN
+  TEXT
+  IMPROVEMENT
+  LIKELIHOOD
+}
